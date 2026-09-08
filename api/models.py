@@ -172,3 +172,56 @@ class Sale(models.Model):
         settings = Settings.objects.first()
         margin = settings.margin if settings else 60
         return round(self.unit_price * margin / 100) * self.qty
+
+
+class PurchaseOrder(models.Model):
+    """Pedido al mayorista: la dueña carga lo que compró para reponer stock."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    date = models.DateField()
+    supplier = models.CharField(max_length=120, blank=True, default="")
+    shipping_cost = models.PositiveIntegerField(default=0)
+    # Margen default del pedido; cada item puede pisarlo con el suyo.
+    margin = models.PositiveSmallIntegerField(default=60)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+
+    def __str__(self):
+        return f"Pedido {self.supplier or 's/proveedor'} - {self.date}"
+
+
+class PurchaseItem(models.Model):
+    """Una prenda dentro de un pedido al mayorista.
+
+    El id lo genera el front al crear el pedido (para poder referenciarlo
+    de inmediato al subir su foto o vincularlo a un producto publicado, sin
+    esperar una segunda vuelta al servidor), asi que no lleva default: si el
+    cliente no lo manda, el serializer le asigna uno.
+    """
+
+    id = models.UUIDField(primary_key=True, editable=True)
+    purchase = models.ForeignKey(
+        PurchaseOrder, on_delete=models.CASCADE, related_name="items"
+    )
+    name = models.CharField(max_length=120)
+    # URL final ya en R2/disco, no un ImageField: la sube un endpoint aparte
+    # (POST .../items/<id>/photo/), que reusa el mismo pipeline de resize y
+    # compresion que ProductPhoto pero guarda solo el resultado.
+    photo = models.URLField(max_length=500, blank=True, default="")
+    unit_cost = models.PositiveIntegerField()
+    qty = models.PositiveSmallIntegerField(default=1)
+    # Si es None, el front usa el margen del pedido.
+    margin = models.PositiveSmallIntegerField(null=True, blank=True)
+    # Si la prenda ya se publico en la tienda, apunta al Product creado.
+    product = models.ForeignKey(
+        Product, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    position = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ["position"]
+
+    def __str__(self):
+        return f"{self.name} x{self.qty}"

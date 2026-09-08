@@ -15,7 +15,17 @@ from django.db.models import Sum, F, Q, Count
 from django.db.models.functions import TruncMonth
 from datetime import datetime, timedelta
 
-from .models import Product, ProductPhoto, HomeSection, SiteContent, Settings, Sale
+from .media import save_resized_image
+from .models import (
+    Product,
+    ProductPhoto,
+    HomeSection,
+    SiteContent,
+    Settings,
+    Sale,
+    PurchaseOrder,
+    PurchaseItem,
+)
 from .serializers import (
     ProductSerializer,
     ProductPhotoSerializer,
@@ -28,6 +38,7 @@ from .serializers import (
     SettingsSerializer,
     SaleSerializer,
     SaleListSerializer,
+    PurchaseOrderSerializer,
     LoginSerializer,
     EmailLoginSerializer,
     StatsSerializer,
@@ -465,3 +476,65 @@ class AdminSettingsView(views.APIView):
             return Response(SettingsSerializer(settings).data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminPurchaseOrderViewSet(viewsets.ModelViewSet):
+    """Pedidos al mayorista.
+
+    GET/POST en /api/admin/purchases/, PATCH/DELETE en
+    /api/admin/purchases/<id>/. El PATCH tambien se usa para vincular un
+    item a un producto publicado (ver PurchaseOrderSerializer.update).
+    """
+
+    queryset = PurchaseOrder.objects.all().prefetch_related("items")
+    serializer_class = PurchaseOrderSerializer
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "patch", "delete"]
+
+
+class AdminPurchaseItemPhotoView(views.APIView):
+    """POST /api/admin/purchases/<purchase_id>/items/<item_id>/photo/
+
+    Multipart con el archivo en el campo 'photo'. Reusa el mismo resize y
+    compresion que las fotos de producto, pero el resultado se guarda como
+    URL en PurchaseItem.photo en vez de por un ImageField propio.
+    """
+
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, purchase_id, item_id):
+        try:
+            item = PurchaseItem.objects.get(id=item_id, purchase_id=purchase_id)
+        except PurchaseItem.DoesNotExist:
+            return Response(
+                {"error": "Item no encontrado en ese pedido"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        photo = request.FILES.get("photo")
+        if not photo:
+            return Response(
+                {"error": "Falta el archivo en el campo 'photo'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if photo.size > 8 * 1024 * 1024:
+            return Response(
+                {"error": "La imagen no puede superar 8MB"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if photo.content_type not in ("image/jpeg", "image/png", "image/webp"):
+            return Response(
+                {"error": "Solo se aceptan imagenes JPEG, PNG o WebP"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        url = save_resized_image(photo, f"purchases/{item.id}.jpg")
+        item.photo = url
+        item.save(update_fields=["photo"])
+
+        return Response({"url": url})

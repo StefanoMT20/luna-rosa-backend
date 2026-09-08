@@ -24,6 +24,8 @@ from api.views import (
     ProductViewSet,
     AdminProductViewSet,
     AdminSalesViewSet,
+    AdminPurchaseOrderViewSet,
+    AdminPurchaseItemPhotoView,
     SettingsPublicView,
     HomeView,
     HealthView,
@@ -43,6 +45,7 @@ router = DefaultRouter()
 router.register(r"products", ProductViewSet, basename="product")
 router.register(r"admin/products", AdminProductViewSet, basename="admin-product")
 router.register(r"admin/sales", AdminSalesViewSet, basename="admin-sale")
+router.register(r"admin/purchases", AdminPurchaseOrderViewSet, basename="admin-purchase")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -59,6 +62,11 @@ urlpatterns = [
     # 'reorder' va ANTES: es un slug valido y <slug:key> lo capturaria primero.
     path("api/admin/sections/reorder/", AdminHomeSectionReorderView.as_view(), name="admin-section-reorder"),
     path("api/admin/sections/<slug:key>/", AdminHomeSectionUpdateView.as_view(), name="admin-section-update"),
+    path(
+        "api/admin/purchases/<uuid:purchase_id>/items/<uuid:item_id>/photo/",
+        AdminPurchaseItemPhotoView.as_view(),
+        name="admin-purchase-item-photo",
+    ),
     path("api/admin/stats/", AdminStatsView.as_view(), name="admin-stats"),
     path("api/admin/settings/", AdminSettingsView.as_view(), name="admin-settings"),
 ]

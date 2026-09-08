@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import Product, ProductPhoto, HomeSection, SiteContent, Settings, Sale
+from .models import (
+    Product,
+    ProductPhoto,
+    HomeSection,
+    SiteContent,
+    Settings,
+    Sale,
+    PurchaseOrder,
+    PurchaseItem,
+)
 
 
 class ProductPhotoInline(admin.TabularInline):
@@ -57,4 +66,18 @@ class SaleAdmin(admin.ModelAdmin):
     list_filter = ["date", "product"]
     search_fields = ["product_name"]
     readonly_fields = ["profit", "created_at"]
+    ordering = ["-date", "-created_at"]
+
+
+class PurchaseItemInline(admin.TabularInline):
+    model = PurchaseItem
+    extra = 0
+
+
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(admin.ModelAdmin):
+    list_display = ["supplier", "date", "shipping_cost", "margin", "created_at"]
+    list_filter = ["date"]
+    search_fields = ["supplier"]
+    inlines = [PurchaseItemInline]
     ordering = ["-date", "-created_at"]
