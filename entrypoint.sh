@@ -11,6 +11,9 @@ echo "==> PostgreSQL listo."
 echo "==> Aplicando migraciones..."
 python manage.py migrate --noinput
 
+echo "==> Provisionando usuario dueña..."
+python manage.py create_owner
+
 echo "==> Recolectando archivos estaticos..."
 python manage.py collectstatic --noinput
 

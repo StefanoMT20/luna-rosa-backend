@@ -159,6 +159,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        # Bearer primero: es el esquema que manda el front. TokenAuthentication
+        # queda como fallback para clientes que usen 'Token <key>'.
+        'api.authentication.BearerTokenAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -182,6 +185,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
         'user': '1000/hour',
+        # Login: limita fuerza bruta sobre email/password por IP.
+        'login': config('LOGIN_THROTTLE_RATE', default='5/min'),
     },
 }
 

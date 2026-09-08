@@ -179,6 +179,11 @@ class LoginSerializer(serializers.Serializer):
     pin = serializers.CharField(write_only=True)
 
 
+class EmailLoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+
 class StatsSerializer(serializers.Serializer):
     revenue = serializers.IntegerField()
     profit = serializers.IntegerField()

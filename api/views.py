@@ -5,6 +5,9 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.authtoken.models import Token
+from rest_framework.throttling import ScopedRateThrottle
+
+from .authentication import BearerTokenAuthentication
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
@@ -26,6 +29,7 @@ from .serializers import (
     SaleSerializer,
     SaleListSerializer,
     LoginSerializer,
+    EmailLoginSerializer,
     StatsSerializer,
 )
 
@@ -106,8 +110,65 @@ class HealthView(views.APIView):
         return Response({"status": "ok"})
 
 
+class AuthLoginView(views.APIView):
+    """POST /api/auth/login/  {email, password} -> {token}
+
+    El token se devuelve para usarse como 'Authorization: Bearer <token>'.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
+
+    def post(self, request):
+        serializer = EmailLoginSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"detail": "Email o contraseña inválidos."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        email = serializer.validated_data["email"]
+        password = serializer.validated_data["password"]
+
+        user = User.objects.filter(email__iexact=email).first()
+
+        if user is None:
+            # Hasheamos igual para no filtrar por tiempo de respuesta si el
+            # email existe o no.
+            User().set_password(password)
+            return Response(
+                {"detail": "Email o contraseña inválidos."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if not user.check_password(password) or not user.is_active:
+            return Response(
+                {"detail": "Email o contraseña inválidos."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response({"token": token.key})
+
+
+class AuthLogoutView(views.APIView):
+    """POST /api/auth/logout/ — invalida el token actual."""
+
+    authentication_classes = [BearerTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        Token.objects.filter(user=request.user).delete()
+        return Response({"detail": "Sesión cerrada."})
+
+
 class AdminLoginView(views.APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -135,7 +196,7 @@ class AdminLoginView(views.APIView):
 
 
 class AdminLogoutView(views.APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -149,7 +210,7 @@ class AdminLogoutView(views.APIView):
 class AdminProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -192,7 +253,7 @@ class AdminProductViewSet(viewsets.ModelViewSet):
 
 
 class AdminPhotoDeleteView(views.APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
@@ -217,7 +278,7 @@ class AdminPhotoDeleteView(views.APIView):
 
 
 class AdminSiteContentView(views.APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def patch(self, request):
@@ -233,7 +294,7 @@ class AdminSiteContentView(views.APIView):
 
 
 class AdminHomeSectionUpdateView(views.APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, key):
@@ -253,7 +314,7 @@ class AdminHomeSectionUpdateView(views.APIView):
 
 
 class AdminHomeSectionReorderView(views.APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -279,7 +340,7 @@ class AdminHomeSectionReorderView(views.APIView):
 
 
 class AdminSalesViewSet(viewsets.ViewSet):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def list(self, request):
@@ -322,7 +383,7 @@ class AdminSalesViewSet(viewsets.ViewSet):
 
 
 class AdminStatsView(views.APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -385,7 +446,7 @@ class AdminStatsView(views.APIView):
 
 
 class AdminSettingsView(views.APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [BearerTokenAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
