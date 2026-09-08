@@ -132,7 +132,13 @@ class AuthLoginView(views.APIView):
         email = serializer.validated_data["email"]
         password = serializer.validated_data["password"]
 
-        user = User.objects.filter(email__iexact=email).first()
+        # Buscamos por email y tambien por username: createsuperuser deja
+        # pasar el email vacio, y en ese caso el username suele ser el mail.
+        user = (
+            User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email))
+            .order_by("-is_superuser", "id")
+            .first()
+        )
 
         if user is None:
             # Hasheamos igual para no filtrar por tiempo de respuesta si el
