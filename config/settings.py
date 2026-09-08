@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from decouple import config
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -188,6 +189,37 @@ if USE_S3:
     AWS_S3_CUSTOM_DOMAIN = config('AWS_S3_CUSTOM_DOMAIN', default='')
     if AWS_S3_CUSTOM_DOMAIN:
         MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+
+    # ------------------------------------------------------------------
+    # Falla el arranque en vez de servir URLs de fotos rotas en silencio.
+    #
+    # Sin AWS_S3_CUSTOM_DOMAIN, S3Storage.url() SIEMPRE genera un presigned
+    # url contra el endpoint privado (*.r2.cloudflarestorage.com): ese
+    # endpoint exige firma y el navegador recibe 400 al intentar abrirlo, y
+    # el visitante ve el cuadrado vacio. No es un caso raro: es el
+    # comportamiento por default de django-storages cuando falta esta
+    # variable, asi que se detecta acá antes que en el bug report.
+    # ------------------------------------------------------------------
+    if not AWS_S3_CUSTOM_DOMAIN:
+        raise ImproperlyConfigured(
+            'USE_S3=True pero falta AWS_S3_CUSTOM_DOMAIN. Sin esa variable, '
+            'las fotos quedan con URLs del endpoint privado de R2 '
+            '(*.r2.cloudflarestorage.com), que el navegador no puede abrir '
+            '(400/401): se ven como un cuadrado vacio. '
+            'Activa "Public Access" en el bucket de R2 (subdominio r2.dev, '
+            'o un dominio propio) y poné ese host en AWS_S3_CUSTOM_DOMAIN.'
+        )
+
+    # El nombre de bucket no puede llevar "/": bucket y ruta son campos
+    # distintos (AWS_STORAGE_BUCKET_NAME vs. la carpeta va en AWS_LOCATION).
+    # Confundirlos produce URLs con un segmento duplicado como
+    # ".../tienda/tienda/products/foto.jpg".
+    if '/' in AWS_STORAGE_BUCKET_NAME:
+        raise ImproperlyConfigured(
+            f"AWS_STORAGE_BUCKET_NAME={AWS_STORAGE_BUCKET_NAME!r} no puede "
+            "contener '/'. Es solo el nombre del bucket en R2. Si buscás "
+            "namespacing por carpeta, usá AWS_LOCATION para el prefijo."
+        )
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
