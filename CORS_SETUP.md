@@ -20,10 +20,14 @@ Django responde con los headers CORS:
 
 ```
 Access-Control-Allow-Origin: https://lunarosaclothing.com
-Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-Access-Control-Allow-Headers: Content-Type, Authorization, Accept
-Access-Control-Allow-Credentials: true
+Access-Control-Allow-Methods: DELETE, GET, OPTIONS, PATCH, POST, PUT
+Access-Control-Allow-Headers: accept, authorization, content-type, user-agent, x-csrftoken, x-requested-with
+Access-Control-Max-Age: 86400
 ```
+
+Nota: NO se manda `Access-Control-Allow-Credentials`. Solo aparece si
+activas `CORS_ALLOW_CREDENTIALS = True`, que hace falta unicamente si
+autenticaras con cookies de sesion. Con tokens Bearer no se necesita.
 
 ## Configuration
 

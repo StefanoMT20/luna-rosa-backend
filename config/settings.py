@@ -167,16 +167,21 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
+    # camelCase en toda la API para que el front no traduzca.
+    # OJO con el nombre del modulo: es 'djangorestframework_camel_case',
+    # no 'rest_framework_camel_case'.
     'DEFAULT_RENDERER_CLASSES': [
         # JSON PRIMERO: DRF usa el primero como default. Si va el Browsable
         # arriba, el front recibe HTML en vez de JSON.
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
+        'djangorestframework_camel_case.render.CamelCaseJSONRenderer',
+        'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
     ],
+    # Los parsers hacen el camino inverso: el front manda unitPrice y los
+    # serializers reciben unit_price.
     'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.MultiPartParser',
-        'rest_framework.parsers.FormParser',
+        'djangorestframework_camel_case.parser.CamelCaseJSONParser',
+        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',
+        'djangorestframework_camel_case.parser.CamelCaseFormParser',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',

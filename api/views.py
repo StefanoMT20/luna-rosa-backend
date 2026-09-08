@@ -68,29 +68,14 @@ class HomeView(views.APIView):
 
     def get(self, request):
         site_content = SiteContent.objects.first()
-        sections = HomeSection.objects.filter(on=True).order_by("position")
-
         if not site_content:
             site_content = SiteContent.objects.create()
 
-        section_data = []
-        for section in sections:
-            if section.mode == "featured":
-                products = Product.objects.filter(active=True, featured=True).order_by(
-                    "position", "-created_at"
-                )
-            else:
-                products = Product.objects.filter(active=True, category=section.cat).order_by(
-                    "position", "-created_at"
-                )
-
-            section_data.append(
-                {
-                    "key": section.key,
-                    "title": section.title,
-                    "products": ProductSerializer(products, many=True, context={"request": request}).data,
-                }
-            )
+        # Devolvemos TODAS las secciones, tambien las apagadas: el front filtra
+        # por 'on' al mostrar (Inicio.tsx) y necesita ver las apagadas en modo
+        # edicion para poder reactivarlas.
+        sections = HomeSection.objects.all().order_by("position")
+        section_data = HomeSectionSerializer(sections, many=True).data
 
         data = {
             "hero_title": site_content.hero_title,

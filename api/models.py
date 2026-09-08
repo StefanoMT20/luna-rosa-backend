@@ -10,10 +10,12 @@ from django.core.files.base import ContentFile
 
 SIZES = ["XS", "S", "M", "L", "XL", "Único"]
 COLORS = ["Negro", "Blanco", "Rosa", "Fucsia", "Rojo", "Beige", "Celeste", "Dorado"]
+# Capitalizadas: es la forma exacta que consume el front (types.ts:
+# Category = "Casual" | "Fiesta" | "Accesorios").
 CATEGORIES = [
-    ("casual", "Casual"),
-    ("fiesta", "Fiesta"),
-    ("accesorios", "Accesorios"),
+    ("Casual", "Casual"),
+    ("Fiesta", "Fiesta"),
+    ("Accesorios", "Accesorios"),
 ]
 
 

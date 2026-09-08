@@ -18,7 +18,8 @@ class ProductPhotoSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    photos = ProductPhotoSerializer(many=True, read_only=True)
+    # El front espera photos: string[] (URLs absolutas), no objetos.
+    photos = serializers.SerializerMethodField()
     profit = serializers.SerializerMethodField()
 
     class Meta:
@@ -40,6 +41,16 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_profit(self, obj):
         return obj.profit
+
+    def get_photos(self, obj):
+        request = self.context.get("request")
+        urls = []
+        for photo in obj.photos.all():
+            if not photo.image:
+                continue
+            url = photo.image.url
+            urls.append(request.build_absolute_uri(url) if request else url)
+        return urls
 
     def validate_sizes(self, value):
         if not value:
@@ -90,9 +101,12 @@ class ProductPhotoUploadSerializer(serializers.ModelSerializer):
 
 
 class HomeSectionSerializer(serializers.ModelSerializer):
+    # En el front el campo se llama 'order'; en la base sigue siendo 'position'.
+    order = serializers.IntegerField(source="position", required=False)
+
     class Meta:
         model = HomeSection
-        fields = ["key", "title", "mode", "cat", "on", "position"]
+        fields = ["key", "title", "mode", "cat", "on", "order"]
 
 
 class HomeSectionProductSerializer(serializers.Serializer):
@@ -169,10 +183,26 @@ class SaleSerializer(serializers.ModelSerializer):
 
 
 class SaleListSerializer(serializers.ModelSerializer):
+    # El front espera productId; la prenda puede haberse borrado (SET_NULL),
+    # en cuyo caso mandamos "" y queda product_name como copia historica.
+    product_id = serializers.SerializerMethodField()
+
     class Meta:
         model = Sale
-        fields = ["id", "product_name", "unit_price", "qty", "profit", "date", "created_at"]
+        fields = [
+            "id",
+            "product_id",
+            "product_name",
+            "unit_price",
+            "qty",
+            "profit",
+            "date",
+            "created_at",
+        ]
         read_only_fields = ["id", "profit", "created_at"]
+
+    def get_product_id(self, obj):
+        return str(obj.product_id) if obj.product_id else ""
 
 
 class LoginSerializer(serializers.Serializer):
