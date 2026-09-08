@@ -120,15 +120,37 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_S3_CUSTOM_DOMAIN=luna-rosa-bucket.s3.amazonaws.com
 ```
 
-#### Option C: Cloudflare R2 (Cost-effective)
+#### Option C: Cloudflare R2 (la que usa Luna Rosa)
+
 ```bash
 USE_S3=True
-AWS_STORAGE_BUCKET_NAME=luna-rosa
-AWS_S3_ENDPOINT_URL=https://your-account-id.r2.cloudflarestorage.com
-AWS_ACCESS_KEY_ID=your-r2-access-key
-AWS_SECRET_ACCESS_KEY=your-r2-secret-key
-AWS_S3_CUSTOM_DOMAIN=your-custom-domain.com  # Optional CDN URL
+AWS_ACCESS_KEY_ID=<tu-access-key-de-R2>
+AWS_SECRET_ACCESS_KEY=<tu-secret-de-R2>
+AWS_STORAGE_BUCKET_NAME=luna-rosa-media
+AWS_S3_REGION_NAME=auto
+AWS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
+AWS_S3_CUSTOM_DOMAIN=media.lunarosaclothing.com
 ```
+
+`AWS_S3_CUSTOM_DOMAIN` **no es opcional en R2.** El endpoint
+`*.r2.cloudflarestorage.com` es la API S3 y exige firma: si las URLs de las
+fotos apuntan ahí, el navegador recibe 401 y no se ve ninguna imagen. Hay que
+exponer el bucket con el subdominio `r2.dev` o con un dominio propio, y poner
+ese host acá. Sin la variable, `MEDIA_URL` queda en `/media/` y las fotos
+tampoco cargan.
+
+Lo que ya queda resuelto en `config/settings.py`, sin tocar nada:
+
+| Ajuste | Por qué |
+|---|---|
+| `AWS_DEFAULT_ACL = None` | R2 no implementa ACLs; mandar `public-read` hace fallar la subida |
+| `AWS_S3_SIGNATURE_VERSION = 's3v4'` | R2 solo acepta firma v4 |
+| `AWS_QUERYSTRING_AUTH = False` | URLs estables en lugar de links firmados que vencen |
+| `AWS_S3_FILE_OVERWRITE = False` | Reusar el nombre deja a la CDN sirviendo la foto vieja |
+| `CacheControl: immutable` | Los nombres son únicos, así que se cachean para siempre |
+
+Crear un bucket **propio para Luna Rosa**: no compartir el de otro proyecto,
+porque las claves de R2 dan acceso a todos los buckets de la cuenta.
 
 ### 5. Luna Rosa Specific Settings
 ```bash

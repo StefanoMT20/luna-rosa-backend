@@ -64,7 +64,15 @@ class ProductPhoto(models.Model):
         return f"{self.product.name} - Photo {self.position}"
 
     def save(self, *args, **kwargs):
-        if self.image:
+        # Solo procesamos subidas nuevas. '_committed' es False unicamente
+        # cuando el archivo todavia no se guardo en el storage.
+        #
+        # Sin esta guarda, cualquier save() posterior (por ejemplo el
+        # reordenamiento al borrar una foto) volvia a abrir la imagen, la
+        # recomprimia y la subia de nuevo: contra R2 eso es una descarga y
+        # una subida por foto, con perdida de calidad acumulada en cada
+        # pasada y un objeto huerfano por vez.
+        if self.image and not self.image._committed:
             img = Image.open(self.image)
 
             max_size = 1200

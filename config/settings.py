@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
+    'storages',
     'api',
 ]
 
@@ -146,8 +147,47 @@ STORAGES = {
     },
 }
 
+# Valores por defecto (disco local). El bloque USE_S3 de abajo los pisa
+# cuando el almacenamiento va a R2, asi que tienen que quedar ANTES.
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ---------------------------------------------------------------------------
+# Almacenamiento de fotos: disco local, o S3 / Cloudflare R2 con USE_S3=True.
+#
+# En un contenedor el disco es efimero: cada redeploy borra las fotos. Para
+# produccion va R2, o un volumen persistente montado en MEDIA_ROOT.
+# ---------------------------------------------------------------------------
+USE_S3 = config('USE_S3', default=False, cast=bool)
+
+if USE_S3:
+    STORAGES['default'] = {'BACKEND': 'storages.backends.s3.S3Storage'}
+
+    AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='auto')
+    AWS_S3_ENDPOINT_URL = config('AWS_S3_ENDPOINT_URL', default='')
+
+    # R2 NO implementa ACLs. Si django-storages manda 'public-read' la subida
+    # falla; con None no se envia el header.
+    AWS_DEFAULT_ACL = None
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+
+    # URLs limpias y estables en vez de links firmados que expiran.
+    AWS_QUERYSTRING_AUTH = False
+
+    # Sin sobrescribir: cada subida recibe un nombre unico. Si se reutilizara
+    # el nombre, la CDN seguiria sirviendo la foto vieja desde su cache.
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=31536000, immutable'}
+
+    # El bucket de R2 no es publico por su endpoint S3: hace falta el
+    # subdominio r2.dev o un dominio propio para que el navegador vea las
+    # fotos. Sin esto las URLs apuntan al endpoint S3 y dan 401.
+    AWS_S3_CUSTOM_DOMAIN = config('AWS_S3_CUSTOM_DOMAIN', default='')
+    if AWS_S3_CUSTOM_DOMAIN:
+        MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
