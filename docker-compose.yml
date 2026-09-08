@@ -21,13 +21,10 @@ services:
   web:
     build: .
     container_name: luna_rosa_app
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
     environment:
-      DEBUG: "True"
+      DEBUG: "False"
       SECRET_KEY: "django-insecure-dev-key-change-in-production"
       ALLOWED_HOSTS: "localhost,127.0.0.1"
       DB_NAME: lunarosa
@@ -37,16 +34,13 @@ services:
       DB_PORT: "5432"
       CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:8000"
     volumes:
-      - .:/app
-      - /app/__pycache__
+      # Solo media persistente. NO montamos '.:/app': eso pisaria la imagen
+      # (incluido el venv local de otra version de Python).
+      - media_data:/app/media
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   postgres_data:
+  media_data:

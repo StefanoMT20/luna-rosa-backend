@@ -52,8 +52,9 @@ urlpatterns = [
     path("api/admin/logout/", AdminLogoutView.as_view(), name="admin-logout"),
     path("api/admin/photos/<uuid:pk>/", AdminPhotoDeleteView.as_view(), name="admin-photo-delete"),
     path("api/admin/home/", AdminSiteContentView.as_view(), name="admin-home"),
-    path("api/admin/sections/<slug:key>/", AdminHomeSectionUpdateView.as_view(), name="admin-section-update"),
+    # 'reorder' va ANTES: es un slug valido y <slug:key> lo capturaria primero.
     path("api/admin/sections/reorder/", AdminHomeSectionReorderView.as_view(), name="admin-section-reorder"),
+    path("api/admin/sections/<slug:key>/", AdminHomeSectionUpdateView.as_view(), name="admin-section-update"),
     path("api/admin/stats/", AdminStatsView.as_view(), name="admin-stats"),
     path("api/admin/settings/", AdminSettingsView.as_view(), name="admin-settings"),
 ]
