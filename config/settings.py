@@ -175,40 +175,27 @@ if USE_S3:
     AWS_DEFAULT_ACL = None
     AWS_S3_SIGNATURE_VERSION = 's3v4'
 
-    # URLs limpias y estables en vez de links firmados que expiran.
-    AWS_QUERYSTRING_AUTH = False
+    # Sin dominio publico conectado al bucket, la unica forma de que el
+    # navegador pueda abrir una foto es una URL firmada: el endpoint privado
+    # de R2 (*.r2.cloudflarestorage.com) exige firma siempre, sin excepcion,
+    # sin importar la config de "Public Access" en la consola. Por eso
+    # QUERYSTRING_AUTH va en True (genera la firma) con una expiracion larga:
+    # cada GET a /api/products/ o /api/home/ arma las URLs en el momento, asi
+    # que se renuevan solas en cada visita; el limite practico es una sesion
+    # de navegador quedando abierta mas tiempo que EXPIRE sin recargar.
+    AWS_QUERYSTRING_AUTH = True
+    AWS_QUERYSTRING_EXPIRE = config('AWS_QUERYSTRING_EXPIRE', default=604800, cast=int)  # 7 dias
 
     # Sin sobrescribir: cada subida recibe un nombre unico. Si se reutilizara
     # el nombre, la CDN seguiria sirviendo la foto vieja desde su cache.
     AWS_S3_FILE_OVERWRITE = False
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=31536000, immutable'}
 
-    # El bucket de R2 no es publico por su endpoint S3: hace falta el
-    # subdominio r2.dev o un dominio propio para que el navegador vea las
-    # fotos. Sin esto las URLs apuntan al endpoint S3 y dan 401.
+    # Si en el futuro se conecta un dominio publico al bucket (r2.dev o
+    # propio), esto vuelve a servir URLs limpias sin firma ni expiracion.
     AWS_S3_CUSTOM_DOMAIN = config('AWS_S3_CUSTOM_DOMAIN', default='')
     if AWS_S3_CUSTOM_DOMAIN:
         MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
-
-    # ------------------------------------------------------------------
-    # Falla el arranque en vez de servir URLs de fotos rotas en silencio.
-    #
-    # Sin AWS_S3_CUSTOM_DOMAIN, S3Storage.url() SIEMPRE genera un presigned
-    # url contra el endpoint privado (*.r2.cloudflarestorage.com): ese
-    # endpoint exige firma y el navegador recibe 400 al intentar abrirlo, y
-    # el visitante ve el cuadrado vacio. No es un caso raro: es el
-    # comportamiento por default de django-storages cuando falta esta
-    # variable, asi que se detecta acá antes que en el bug report.
-    # ------------------------------------------------------------------
-    if not AWS_S3_CUSTOM_DOMAIN:
-        raise ImproperlyConfigured(
-            'USE_S3=True pero falta AWS_S3_CUSTOM_DOMAIN. Sin esa variable, '
-            'las fotos quedan con URLs del endpoint privado de R2 '
-            '(*.r2.cloudflarestorage.com), que el navegador no puede abrir '
-            '(400/401): se ven como un cuadrado vacio. '
-            'Activa "Public Access" en el bucket de R2 (subdominio r2.dev, '
-            'o un dominio propio) y poné ese host en AWS_S3_CUSTOM_DOMAIN.'
-        )
 
     # El nombre de bucket no puede llevar "/": bucket y ruta son campos
     # distintos (AWS_STORAGE_BUCKET_NAME vs. la carpeta va en AWS_LOCATION).

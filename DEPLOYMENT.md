@@ -129,15 +129,18 @@ AWS_SECRET_ACCESS_KEY=<tu-secret-de-R2>
 AWS_STORAGE_BUCKET_NAME=luna-rosa-media
 AWS_S3_REGION_NAME=auto
 AWS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
-AWS_S3_CUSTOM_DOMAIN=media.lunarosaclothing.com
 ```
 
-`AWS_S3_CUSTOM_DOMAIN` **no es opcional en R2.** El endpoint
-`*.r2.cloudflarestorage.com` es la API S3 y exige firma: si las URLs de las
-fotos apuntan ahí, el navegador recibe 401 y no se ve ninguna imagen. Hay que
-exponer el bucket con el subdominio `r2.dev` o con un dominio propio, y poner
-ese host acá. Sin la variable, `MEDIA_URL` queda en `/media/` y las fotos
-tampoco cargan.
+Sin dominio público conectado al bucket, las fotos se sirven con **URLs
+firmadas** contra el endpoint privado (`*.r2.cloudflarestorage.com`), válidas
+por `AWS_QUERYSTRING_EXPIRE` segundos (default: 7 días). Cada `GET` a
+`/api/products/` o `/api/home/` genera las URLs en ese momento, así que se
+renuevan solas en cada visita — el único caso límite es una pestaña del
+navegador quedando abierta más de 7 días sin recargar.
+
+Si más adelante conectás un dominio público al bucket (subdominio `r2.dev` o
+uno propio), agregá `AWS_S3_CUSTOM_DOMAIN=<ese-host>` y las URLs vuelven a
+salir limpias y sin expiración, sin tocar nada más.
 
 Lo que ya queda resuelto en `config/settings.py`, sin tocar nada:
 
@@ -145,7 +148,8 @@ Lo que ya queda resuelto en `config/settings.py`, sin tocar nada:
 |---|---|
 | `AWS_DEFAULT_ACL = None` | R2 no implementa ACLs; mandar `public-read` hace fallar la subida |
 | `AWS_S3_SIGNATURE_VERSION = 's3v4'` | R2 solo acepta firma v4 |
-| `AWS_QUERYSTRING_AUTH = False` | URLs estables en lugar de links firmados que vencen |
+| `AWS_QUERYSTRING_AUTH = True` | Sin dominio público, es la única forma de que el navegador abra la foto |
+| `AWS_QUERYSTRING_EXPIRE = 604800` | 7 días; ajustable por env, es el máximo que permite SigV4 |
 | `AWS_S3_FILE_OVERWRITE = False` | Reusar el nombre deja a la CDN sirviendo la foto vieja |
 | `CacheControl: immutable` | Los nombres son únicos, así que se cachean para siempre |
 
